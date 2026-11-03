@@ -68,7 +68,8 @@
 					headers: {'X-Requested-With': 'XMLHttpRequest'}
 				})
 					.then(function (response) {
-						return response.json().then(function (data) {
+						// A server error may not return JSON: fall back to the generic error message
+						return response.json().catch(function () { return null; }).then(function (data) {
 							if (!response.ok || !data || !data.status) {
 								throw new Error((data && typeof data.content === 'string' && data.content) || cfg.i18n.error);
 							}
