@@ -73,7 +73,9 @@ class DocxToJatsPlugin extends GenericPlugin
         $op = $args[1];
 
         if ($page === 'docxParser' && $op === 'parse') {
-            define('HANDLER_CLASS', '\APP\plugins\generic\docxConverter\DOCXConverterHandler');
+            // OJS 3.5 no longer supports define('HANDLER_CLASS'): the handler
+            // instance is returned through the 4th hook argument.
+            $args[3] = new DOCXConverterHandler($this);
             return true;
         }
         return false;
