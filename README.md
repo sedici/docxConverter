@@ -1,21 +1,42 @@
 # DOCX to JATS XML Converter Plugin 
 The plugin for OJS 3.1+ that allows to convert articles in DOCX to JATS XML format. The output is compatible with Texture plugin - JATS XML online editor.
 
+> **This branch is for OJS 3.5.** Branches for other versions: `dev-3_4` / `stable-3_4_0` (OJS 3.4) and `dev-3_3` / `stable_3_3_0` (OJS 3.3).
+
+## Requirements (OJS 3.5)
+* OJS 3.5
+* PHP 8.2 or later, with the `zip`, `dom` and `curl` extensions
+* Outgoing internet access to `api.openalex.org`, used by `citation-parser-ojs` to validate and enrich references. OpenAlex applies a free daily request budget per IP address; when it is exhausted (HTTP 429) the conversion still works, but references are not enriched.
+
 DOCX is an archive that complies with Open Office XML format. It is commonly used for creation and editing of text documents, including as an exchange format for scientific articles, mainly between an author and a publisher. The converter is designed to support the output from MS Word, LibreOffice Writer, and Google Docs.    
 
 This plugin is aimed at helping publishers that are using JATS XML as a pivotal format for their publication workflow. The idea behind the converter is to create a basic structure of the document from given DOCX file and then prepare the manuscript for the production by JATS XML online editor, like the Texture plugin. The converter is written in pure PHP and doesn't require any additional external extensions for basic functionality.
 
 ## Installation
-The plugin can be installed in two ways, 1) by downloading the latest stable release or 2) by cloning the master branch. The latter can be accomplished with Git by cloning the repo with submodules into `plugins/generic` directory starting from the web root of OJS instance. It's as simple as: `git clone --recurse-submodules https://github.com/Vitaliy-1/docxConverter.git`.
+Clone the repository with its submodules (`docxToJats` and, inside it, `citation-parser-ojs`) into the `plugins/generic` directory of the OJS instance, using the branch for your OJS version:
 
-After installation plugin should be activated in the plugins menu: `Settings -> Website -> Plugins -> check enable near DOCX to JATS XML Converter Plugin`. The button `Convert to JATS XML` will appear as a dropdown under Draft DOCX file on any Workflow stage.
+```
+cd plugins/generic
+git clone --recurse-submodules -b dev-3_5 https://github.com/sedici/docxConverter.git
+```
+
+Then register the plugin version from the OJS root directory with `php lib/pkp/tools/installPluginVersion.php plugins/generic/docxConverter/version.xml` (or install it from the plugin gallery/upload) and activate it: `Settings -> Website -> Plugins -> check enable near DOCX to JATS XML Converter Plugin`.
 
 _Important note:_ as parsing references is not yet supported, the only way to add them is manually with available JATS XML WYSIWYG editor - [Texture Plugin](https://github.com/pkp/texture) for OJS 3.1+. How to use them together: ![](https://e-medjournal.com/suppl/convert.gif)
 
 ## Usage
-DOCX to JATS XML Converter doesn't require any additional configurations. When the article reaches Copyediting or Production stage, `Convert to JATS XML` button appears under the DOCX file as per screenshot.
-![Screenshot from the copyediting stage when plugin is activated](https://github.com/Vitaliy-1/docxConverter/blob/main/images/docx_grid.png?raw=true)
-Pressing the button triggers automatic conversion and if the process is successful, new xml file appears in the same grid, under the original one. Otherwise, it may mean that during the conversion process an error occured or the plugin doesn't support the DOCX file with the specific inner structure. For debugging purposes, when openining a new issue, please specify PHP error, associated with the issue.  
+DOCX to JATS XML Converter doesn't require any additional configurations.
+
+In OJS 3.5 the action is in the `⋯` (more actions) menu of each DOCX file, in these file lists of the workflow:
+
+* Copyediting stage: **Draft Files** and **Copyedited**
+* Production stage: **Production Ready Files**
+
+Only journal managers, section editors and assistants assigned to the stage can run the conversion.
+
+Choosing `Convert to JATS XML` runs the conversion. If it succeeds, a notification is shown and the new XML file appears in the same list as the original DOCX, as a regular submission file (the images of the document are added as dependent files of the XML). The XML is **not** added as the publication's JATS XML. If the conversion fails, an error notification is shown: it may mean that an error occurred or that the plugin doesn't support the DOCX file with the specific inner structure. For debugging purposes, when opening a new issue, please specify the PHP error associated with the issue.
+
+![Screenshot from the copyediting stage when plugin is activated (OJS 3.4 and earlier)](https://github.com/Vitaliy-1/docxConverter/blob/main/images/docx_grid.png?raw=true)
 
 ## What article elements are supported? 
 It is planned that DOCX to JATS XML Converter will support all major features of DOCX. The table below lists elements that are already supported and are planned to be developed in near future. The row `Planned for the 1.0.0 release` means that it's likely to be included in the first stable release, otherwise it's planned to be included later.
@@ -94,7 +115,7 @@ When working with Google Docs it should be kept in mind that it doesn't support 
 * _Tables and figures._ Tables and figures can be attached using `insert` button on the left-top side of the toolbar. Cells merging is supported. Unfortunately, caption are not supported by the Google Docs. How to create a table: https://www.youtube.com/watch?v=5HkarJaViQU; how to insert an image: https://www.youtube.com/watch?v=5Eh5WmTJ6qo
 * _Lists._ Lists can be inserted using the items on a toolbar that are positioned to the right from formatted text options. Nested lists are supported, to change the level of the list item press `tab` (level down) or `shift + tab` (level up) keyboard buttons while the cursor is on the needed list item. How to manage lists: https://www.youtube.com/watch?v=g2UhdpozSdQ
 * _Export as DOCX._ `File -> Download as -> Microsoft Word (.docx)`
-* _Upload to OJS._ Produced file can be download to the Copyediting or Production stage as a Draft File, `Convert to JATS XML` button will appear in the dropdown menu under the file.
+* _Upload to OJS._ Upload the produced file to the Copyediting or Production stage; `Convert to JATS XML` will appear in the `⋯` menu of the file.
 ### LibreOffice Writer & Microsoft Word
 The interface of the document editing window of LibreOffice Writer and MS Word are similar to described above. Styles that are applied to the paragraphs also can be found on the toolbar, as well as options for the text formatting, inserting lists and images. Bibliography style by default isn't available in the correspondent dropdown menu, instead it's listed in the advanced styles settings. If own style is created, the plugin will treat it as a style from which it was inherited.
 
