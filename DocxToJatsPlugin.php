@@ -24,9 +24,11 @@ class DocxToJatsPlugin extends GenericPlugin
     public const ALLOWED_ROLES = [Role::ROLE_ID_MANAGER, Role::ROLE_ID_SUB_EDITOR, Role::ROLE_ID_ASSISTANT];
 
     /**
-     * File managers of the OJS 3.5 workflow (Vue) where the action is offered, by workflow stage
+     * File managers of the OJS 3.5 workflow (Vue) where the action is offered, by workflow stage.
+     * Same lists as the OJS 3.4 grids: final drafts and copyedited files (editing), production ready files.
      */
     public const FILE_MANAGER_NAMESPACES = [
+        'FINAL_DRAFT_FILES' => WORKFLOW_STAGE_ID_EDITING,
         'COPYEDITED_FILES' => WORKFLOW_STAGE_ID_EDITING,
         'PRODUCTION_READY_FILES' => WORKFLOW_STAGE_ID_PRODUCTION,
     ];
