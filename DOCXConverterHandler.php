@@ -34,7 +34,7 @@ class DOCXConverterHandler extends Handler
      */
     var $_isBackendPage = true;
 
-    function __construct()
+    public function __construct(protected ?DocxToJatsPlugin $plugin = null)
     {
         parent::__construct();
         $this->addRoleAssignment(
@@ -57,8 +57,16 @@ class DOCXConverterHandler extends Handler
      */
     public function parse(array $args, Request $request): JSONMessage
     {
+        if (!$request->isPost() || !$request->checkCSRF()) {
+            return new JSONMessage(false, __('form.csrfInvalid'));
+        }
+
+        $submissionId = (int)$request->getUserVar('submissionId');
         $submissionFileId = (int)$request->getUserVar('submissionFileId');
-        $submissionFile = Repo::submissionFile()->get($submissionFileId);
+        $submissionFile = Repo::submissionFile()->get($submissionFileId, $submissionId);
+        if (!$submissionFile || !in_array($submissionFile->getData('mimetype'), DocxToJatsPlugin::getSupportedMimetypes())) {
+            return new JSONMessage(false, __('plugins.generic.docxToJats.error.invalidFile'));
+        }
 
         $fileManager = new PrivateFileManager();
         $filePath = $fileManager->getBasePath() . '/' . $submissionFile->getData('path');
@@ -100,7 +108,7 @@ class DOCXConverterHandler extends Handler
             ]
         );
 
-        Repo::submissionFile()->add($newSubmissionFile, $request);
+        Repo::submissionFile()->add($newSubmissionFile);
 
         unlink($tmpfname);
 
@@ -161,7 +169,7 @@ class DOCXConverterHandler extends Handler
             'name' => array_fill_keys(array_keys($newSubmissionFile->getData('name')), basename($originalName))
         ]);
 
-        Repo::submissionFile()->add($newSupplementaryFile, $request);
+        Repo::submissionFile()->add($newSupplementaryFile);
         unlink($tmpfnameSuppl);
     }
 }

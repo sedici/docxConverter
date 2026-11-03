@@ -22,3 +22,12 @@ msgstr "Конвертувати в JATS XML"
 
 msgid "grid.action.parse"
 msgstr "Конвертувати цей файл в JATS XML"
+
+msgid "plugins.generic.docxToJats.notification.success"
+msgstr "Файл перетворено на JATS XML."
+
+msgid "plugins.generic.docxToJats.notification.error"
+msgstr "Не вдалося перетворити файл на JATS XML."
+
+msgid "plugins.generic.docxToJats.error.invalidFile"
+msgstr "Вибраний файл не є файлом DOCX цього подання."

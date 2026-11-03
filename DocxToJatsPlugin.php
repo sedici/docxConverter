@@ -13,16 +13,26 @@
 namespace APP\plugins\generic\docxConverter;
 
 use APP\core\Application;
-use APP\facades\Repo;
-use PKP\controllers\grid\GridRow;
-use PKP\linkAction\LinkAction;
-use PKP\linkAction\request\PostAndRedirectAction;
+use APP\template\TemplateManager;
 use PKP\plugins\GenericPlugin;
 use PKP\plugins\Hook;
 use PKP\security\Role;
 
 class DocxToJatsPlugin extends GenericPlugin
 {
+    /** Roles that can run the conversion (same rule as DOCXConverterHandler) */
+    public const ALLOWED_ROLES = [Role::ROLE_ID_MANAGER, Role::ROLE_ID_SUB_EDITOR, Role::ROLE_ID_ASSISTANT];
+
+    /**
+     * File managers of the OJS 3.5 workflow (Vue) where the action is offered, by workflow stage.
+     * Same lists as the OJS 3.4 grids: final drafts and copyedited files (editing), production ready files.
+     */
+    public const FILE_MANAGER_NAMESPACES = [
+        'FINAL_DRAFT_FILES' => WORKFLOW_STAGE_ID_EDITING,
+        'COPYEDITED_FILES' => WORKFLOW_STAGE_ID_EDITING,
+        'PRODUCTION_READY_FILES' => WORKFLOW_STAGE_ID_PRODUCTION,
+    ];
+
     /**
      * @copydoc Plugin::getDisplayName()
      */
@@ -47,7 +57,7 @@ class DocxToJatsPlugin extends GenericPlugin
         if (parent::register($category, $path, $mainContextId)) {
             if ($this->getEnabled()) {
                 require_once __DIR__ . "/docxToJats/vendor/autoload.php";
-                Hook::add('TemplateManager::fetch', [$this, 'templateFetchCallback']);
+                Hook::add('TemplateManager::display', [$this, 'addFileManagerAction']);
                 Hook::add('LoadHandler', [$this, 'callbackLoadHandler']);
                 $this->_registerTemplateResource();
             }
@@ -65,7 +75,10 @@ class DocxToJatsPlugin extends GenericPlugin
     }
 
     /**
-     * Handles the callback for loading specific page and operation route handlers.
+     * Route docxParser/parse to the conversion handler.
+     *
+     * OJS 3.5 no longer supports define('HANDLER_CLASS'): the handler instance
+     * must be returned through the 4th hook argument.
      */
     public function callbackLoadHandler($hookName, $args): bool
     {
@@ -73,68 +86,56 @@ class DocxToJatsPlugin extends GenericPlugin
         $op = $args[1];
 
         if ($page === 'docxParser' && $op === 'parse') {
-            define('HANDLER_CLASS', '\APP\plugins\generic\docxConverter\DOCXConverterHandler');
+            $args[3] = new DOCXConverterHandler($this);
             return true;
         }
         return false;
     }
 
     /**
-     * Adds additional links to submission files grid row.
+     * Add the "Convert to JATS XML" action to the workflow file managers.
+     *
+     * In OJS 3.5 the workflow files are listed by the Vue FileManager component
+     * (the old grids are no longer rendered), so the action is added in JS by
+     * extending the fileManager_<namespace> Pinia stores.
      */
-    public function templateFetchCallback($hookName, $params): void
+    public function addFileManagerAction($hookName, $args): bool
     {
-        $request = $this->getRequest();
-        $dispatcher = $request->getDispatcher();
+        /** @var TemplateManager $templateMgr */
+        $templateMgr = $args[0];
+        $request = Application::get()->getRequest();
+        $context = $request->getContext();
+        $user = $request->getUser();
 
-        $templateMgr = $params[0];
-        $resourceName = $params[1];
-        if ($resourceName == 'controllers/grid/gridRow.tpl') {
-            /* @var $row GridRow */
-            $row = $templateMgr->getTemplateVars('row');
-            $data = $row->getData();
-            if (is_array($data) && (isset($data['submissionFile']))) {
-                $submissionFile = $data['submissionFile'];
-                $fileExtension = strtolower($submissionFile->getData('mimetype'));
-
-                // Ensure that the conversion is run on the appropriate workflow stage
-                $stageId = (int)$request->getUserVar('stageId');
-                $submissionId = $submissionFile->getData('submissionId');
-                $submission = Repo::submission()->get($submissionId);
-                $submissionStageId = $submission->getData('stageId');
-                $roles = $request->getUser()->getRoles($request->getContext()->getId());
-
-                $accessAllowed = false;
-                foreach ($roles as $role) {
-                    if (in_array($role->getId(), [Role::ROLE_ID_MANAGER, Role::ROLE_ID_SUB_EDITOR, Role::ROLE_ID_ASSISTANT])) {
-                        $accessAllowed = true;
-                        break;
-                    }
-                }
-                if (in_array(strtolower($fileExtension), static::getSupportedMimetypes()) && // show only for files with docx extension
-                    $accessAllowed && // only for those that have access according to the DOCXConverterHandler rules
-                    in_array($stageId, $this->getAllowedWorkflowStages()) && // only for stage ids copyediting or higher
-                    in_array($submissionStageId, $this->getAllowedWorkflowStages()) // only if submission has correspondent stage id
-                ) {
-                    $path = $dispatcher->url($request, Application::ROUTE_PAGE, null, 'docxParser', 'parse', null,
-                        [
-                            'submissionId' => $submissionId,
-                            'submissionFileId' => $submissionFile->getId(),
-                            'stageId' => $stageId
-                        ]
-                    );
-
-                    $pathRedirect = $dispatcher->url($request, Application::ROUTE_PAGE, null, 'workflow', 'access', $submissionId);
-
-                    $linkAction = new LinkAction(
-                        'parse',
-                        new PostAndRedirectAction($path, $pathRedirect),
-                        __('plugins.generic.docxToJats.button.parseDocx')
-                    );
-                    $row->addAction($linkAction);
-                }
-            }
+        if (!$context || !$user || !$user->hasRole(self::ALLOWED_ROLES, $context->getId())) {
+            return false;
         }
+
+        $dispatcher = $request->getDispatcher();
+        $config = [
+            'parseUrl' => $dispatcher->url($request, Application::ROUTE_PAGE, null, 'docxParser', 'parse'),
+            'mimetypes' => static::getSupportedMimetypes(),
+            'namespaces' => self::FILE_MANAGER_NAMESPACES,
+            'i18n' => [
+                'action' => __('plugins.generic.docxToJats.button.parseDocx'),
+                'success' => __('plugins.generic.docxToJats.notification.success'),
+                'error' => __('plugins.generic.docxToJats.notification.error'),
+            ],
+        ];
+
+        $templateMgr->addJavaScript(
+            'docxConverterConfig',
+            'window.pkpDocxConverter = ' . json_encode($config) . ';',
+            ['inline' => true, 'contexts' => ['backend'], 'priority' => TemplateManager::STYLE_SEQUENCE_LAST]
+        );
+        $templateMgr->addJavaScript(
+            'docxConverterFileManager',
+            $this->getPluginUrl($request) . '/js/fileManagerAction.js',
+            // After js/build.js (STYLE_SEQUENCE_LATE), which defines pkp.registry
+            ['contexts' => ['backend'], 'priority' => TemplateManager::STYLE_SEQUENCE_LAST]
+        );
+
+        return false;
     }
 
     /**

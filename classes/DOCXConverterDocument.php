@@ -50,15 +50,17 @@ class DOCXConverterDocument extends Document
         $titleGroup = $this->createElement("title-group");
         $articleMeta->appendChild($titleGroup);
 
-        $articleTitle = $this->createElement("article-title", htmlspecialchars($submission->getLocalizedTitle()));
+        $publication = $submission->getCurrentPublication();
+
+        $articleTitle = $this->createElement("article-title", htmlspecialchars($publication->getLocalizedTitle()));
         $titleGroup->appendChild($articleTitle);
 
-        if ($submission->getLocalizedSubtitle()) {
-            $subtitle = $this->createElement("subtitle", htmlspecialchars($submission->getLocalizedSubtitle()));
+        $localizedSubtitle = $publication->getLocalizedData('subtitle');
+        if ($localizedSubtitle) {
+            $subtitle = $this->createElement("subtitle", htmlspecialchars($localizedSubtitle));
             $titleGroup->appendChild($subtitle);
         }
 
-        $publication = $submission->getCurrentPublication();
         $authors = $publication->getData('authors');
 
         if (!empty($authors)) {
@@ -97,7 +99,7 @@ class DOCXConverterDocument extends Document
                 $aff->setAttribute("id", "aff-" . ($key+1));
                 $articleMeta->appendChild($aff);
 
-                $institution = $this->createElement("institution", htmlspecialchars($author->getLocalizedAffiliation()));
+                $institution = $this->createElement("institution", htmlspecialchars($author->getLocalizedAffiliationNamesAsString()));
                 $aff->appendChild($institution);
 
                 $country = $this->createElement("country", htmlspecialchars($author->getCountryLocalized()));
@@ -110,7 +112,7 @@ class DOCXConverterDocument extends Document
 
         $dateReceived = $this->createElement("date");
         $dateReceived->setAttribute("date-type", "received");
-        $drf = new DateTime($submission->getDateSubmitted());
+        $drf = new DateTime($submission->getData('dateSubmitted'));
         $dateReceived->setAttribute("iso-8601-date", $drf->format("Y-m-d"));
         $history->appendChild($dateReceived);
 
@@ -121,10 +123,11 @@ class DOCXConverterDocument extends Document
         $yearReceived = $this->createElement("year", $drf->format("Y"));
         $dateReceived->appendChild($yearReceived);
 
-        if ($submission->getDatePublished()) {
+        $datePublishedValue = $publication->getData('datePublished');
+        if ($datePublishedValue) {
             $datePublished = $this->createElement("date");
             $datePublished->setAttribute("data-type", "published");
-            $dpf = new DateTime($submission->getDatePublished());
+            $dpf = new DateTime($datePublishedValue);
             $datePublished->setAttribute("iso-8601-date", $dpf->format("Y-m-d"));
             $history->appendChild($datePublished);
 
