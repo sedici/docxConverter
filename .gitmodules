@@ -1,4 +1,4 @@
 [submodule "docxToJats"]
     path = docxToJats
     url = https://github.com/sedici/docxToJats.git
-    branch = stable-v1.0.0
+    branch = feature/openalex-integration
