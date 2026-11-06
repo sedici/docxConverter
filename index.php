@@ -12,4 +12,4 @@
 
 require_once('DocxToJatsPlugin.php');
 
-return new DocxToJatsPlugin();
+return new \APP\plugins\generic\docxConverter\DocxToJatsPlugin();
