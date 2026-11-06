@@ -14,7 +14,6 @@ namespace APP\plugins\generic\docxConverter;
 
 use APP\core\Application;
 use APP\core\Request;
-use APP\core\Services;
 use APP\facades\Repo;
 use APP\handler\Handler;
 use APP\plugins\generic\docxConverter\classes\DOCXConverterDocument;
@@ -83,7 +82,7 @@ class DOCXConverterHandler extends Handler
 
         // Add new JATS XML file
         $submissionDir = Repo::submissionFile()->getSubmissionDir($submission->getData('contextId'), $submissionId);
-        $newFileId = Services::get('file')->add(
+        $newFileId = app()->get('file')->add(
             $tmpfname,
             $submissionDir . DIRECTORY_SEPARATOR . uniqid() . '.xml'
         );
@@ -152,7 +151,7 @@ class DOCXConverterHandler extends Handler
         }
 
         $submissionDir = Repo::submissionFile()->getSubmissionDir($submission->getData('contextId'), $submission->getId());
-        $newFileId = Services::get('file')->add(
+        $newFileId = app()->get('file')->add(
             $tmpfnameSuppl,
             $submissionDir . '/' . uniqid() . '.' . $fileManager->parseFileExtension($originalName)
         );
